@@ -1,4 +1,4 @@
-# 理解 Go 的 GC 设计
+# 理解 Golang 的 GC
 
 ## GC
 

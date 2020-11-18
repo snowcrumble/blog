@@ -40,7 +40,7 @@ _golang1.12 开始支持 TLS 1.3，默认不启用，需要配置 `GODEBUG=tls13
 4. 应用层数据在 Server 端发送 Finished 之后开始通信
 
 ![Alt Text](./images/tls1.2-2-rtt.png)
-<centor>TLS 1.2 2-RTT</centor>
+<p align="center">TLS 1.2 2-RTT</p>
 
 ### TLS 1.3 握手过程
 
@@ -54,7 +54,7 @@ _golang1.12 开始支持 TLS 1.3，默认不启用，需要配置 `GODEBUG=tls13
 4. 应用层数据在 Server 端发送 Finished 之后开始通信
 
 ![Alt Text](./images/tls1.3-1-rtt.png)
-<centor>TLS 1.3 1-RTT</centor>
+<p align="center">TLS 1.3 1-RTT</p>
 
 **0-RTT 模式**
 
@@ -64,7 +64,7 @@ _golang1.12 开始支持 TLS 1.3，默认不启用，需要配置 `GODEBUG=tls13
 2. 除了早期数据以外的数据，在 1-RTT 之后再用本次握手生成的新的 `key_share` 进行通信
 
 ![Alt Text](./images/tls1.3-0-rtt.png)
-<centor>TLS 1.3 0-RTT</centor>
+<p align="center">TLS 1.3 0-RTT</p>
 
 **0-RTT 存在安全风险**
 

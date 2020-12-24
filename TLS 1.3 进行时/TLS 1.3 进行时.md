@@ -75,7 +75,7 @@ _Go 的实现是不支持 0-RTT 模式的。考虑到与其他 TLS 1.3 实现的
 
 ## 为什么取消了压缩算法
 
-一个 HTTPS 链接实际上有三层链接，分别是 TCP、TLS、HTTP，以前的压缩是在 TLS 层做的（有种叫法为 6 层），在 TLS 1.2 以前可以用 gzip 压缩 header 和 body，但是 TLS 层无法感知 body 内容的意义，所以没法针对数据特点进行分类压缩，只好统一采用相同的压缩算法。而且这个算法会遭到 [CRIME](https://www.ekoparty.org/archive/2012/CRIME_ekoparty2012.pdf) 攻击，这是由于 gzip 压缩算法基于字符串匹配和动态霍夫曼编码，攻击者可以用部分请求逐渐试探请求压缩后的字节数，最终可以破解 Cookie。
+一个 HTTPS 链接实际上有三层链接，分别是 TCP、TLS、HTTP，以前的压缩是在 TLS 层做的（有种叫法为 6 层），在 TLS 1.2 以前可以用 gzip 压缩 header 和 body，但是 TLS 层无法感知 body 内容的意义，所以没法针对数据特点进行分类压缩，只好统一采用相同的压缩算法。而且这个算法会遭到 [CRIME](https://zh.wikipedia.org/wiki/CRIME) 攻击，这是由于 gzip 压缩算法基于字符串匹配和动态霍夫曼编码，攻击者可以用部分请求逐渐试探请求压缩后的字节数，最终可以破解 Cookie。
 
 HTTP/2 的一大杀器 HPACK 改善了这个问题，HPACK 压缩算法只针对 header 进行压缩，将 body 压缩交给应用层，这使得它可以针对 header 的数据特点设计最合适的算法，HPACK 与 HTTP Header 的定义深度适配，对于常见的 Header 比如 `:status: 200` 压缩后只需要传输一个字节，而对于每次请求都带上重复的 Cookie 这种常见场景，可以将通常几百字节的 Cookie 压缩到 2 字节，高达 99%的压缩率。HPACK 采用了静态加动态的 Header 字典和静态霍夫曼编码，基于 Header 数据的特点，在静态字典中记录了常见的 Header name 和 value 用一个字节直接表示，对于 value 不常见或不可枚举的会对 value 进行霍夫曼编码记录在动态字典，在最终传输时消耗两个字节，HPACK 基于大量的 HTTP Header 数据生成了 [静态霍夫曼编码表](https://tools.ietf.org/html/rfc7541#appendix-B)，用于编码其他的字符串，这大幅减缓了 CRIME 攻击，因为攻击者必须用完整的 header 名去匹配，不能用部分字符串去猜。目前还没有针对静态霍夫曼编码的攻击出现，并且根据 [PETAL](https://tools.ietf.org/html/rfc7541#ref-PETAL) 研究的结论，攻击者无法针对静态霍夫曼编码得到有用信息。来自 Cloudflare 的统计数据，HPACK 为 Request Header 提高了 76%的压缩率，为 Response Header 提高了 69%。所以 TLS 1.3 取消了压缩算法，将 Header 压缩提升到 HTTP 层，Body 压缩则交给应用层，比如 gRPC。
 
@@ -109,9 +109,9 @@ QUIC 最近很火，但是 TLS 1.3 的出现可能会帮它降降火，对比一
 
 **QUIC 针对弱网的几个特性**
 
-1. 从数据包级别解决了队头阻塞（head-of-line blocking）问题。HTTP/2 虽然解决了 HTTP1.1 只能顺序处理每个请求的问题，但是依然没办法解决 TCP 的网络拥塞问题。但是 QUIC 的重传机制会增加每个包的冗余，基于UDP的可靠传输KCP协议也是通过增加冗余来达到可靠性，这也是在通畅网络环境下性能会比如 TCP 的一个原因。
+1. 从数据包级别解决了队头阻塞（head-of-line blocking）问题。HTTP/2 虽然解决了 HTTP1.1 只能顺序处理每个请求的问题，但是依然没办法解决 TCP 的网络拥塞问题。但是 QUIC 的重传机制会增加每个包的冗余，基于UDP的可靠传输 KCP 协议也是通过增加冗余来达到可靠性，这也是在通畅网络环境下性能会比如 TCP 的一个原因。
 2. 并且支持连接迁移。比如 4G 到 WiFi，QUIC 不像 TCP 那样用 IP 端口四元组标识链接，而是用一个 64 位随机数。但是基于 UDP 的连接迁移是导致 QUIC 不能沿用 HPACK 的绊脚石，直接在 QUIC 中使用 HPACK 会增加队头阻塞的影响，比如 gQUIC 的实现，这导致 QUIC 必须设计一个兼容版本：QPACK，旨在保证不影响队头阻塞的前提下尽量达到 HAPCK 的压缩率，但是这确实增加了一点点传输用于同步压缩器状态。
-3. 自定义用户态的拥塞控制插件。TLS 本身没有拥塞控制，是基于 TCP 的拥塞控制与 HTTP/2 的拥塞控制共同作用的，这让拥塞控制算法的调优比较复杂，而 QUIC 可以在方便的自定义拥塞控制算法，也已经有一些实践 [快手自研 kQUIC：千万级 QPS 集群是如何实现的？](https://mp.weixin.qq.com/s/ttGHI4Vxla2M_k2jsaiCTQ)。
+3. 自定义用户态的拥塞控制插件。TLS 本身没有拥塞控制，是基于 TCP 的拥塞控制与 HTTP/2 的拥塞控制共同作用的，这让拥塞控制算法的调优比较复杂，而 QUIC 可以在方便的自定义拥塞控制算法，业界也已经有一些实践[<sup>1</sup>](#refer-anchor-1)。
 
 以上这些 QUIC 的优势是可以直接影响用户体验的，但是 QUIC 的硬伤是中间设备的支持问题，换个角度来看，TCP 早就有支持连接迁移的方式，`MPTCP(Multpath TCP)`可以让 4G、WiFi 同时工作，苹果的`Siri`、华为的`Link Turbo`，三星的智能手机都是基于这个特性实现的。两条路都通的情况下，谁发展的更好就很难说了。
 
@@ -140,3 +140,6 @@ TLS 1.3 虽然面临着各种困难，各种版本实现的一致性，浏览器
 [Introducing 0 RTT](https://blog.Cloudflare.com/introducing-0-rtt/)
 
 [QPACK: Header Compression for HTTP/3 draft 16](https://tools.ietf.org/html/draft-ietf-quic-qpack-16)
+
+<div id="refer-anchor-1"></div>
+[快手自研 kQUIC：千万级 QPS 集群是如何实现的？](https://mp.weixin.qq.com/s/ttGHI4Vxla2M_k2jsaiCTQ)

@@ -142,4 +142,5 @@ TLS 1.3 虽然面临着各种困难，各种版本实现的一致性，浏览器
 [QPACK: Header Compression for HTTP/3 draft 16](https://tools.ietf.org/html/draft-ietf-quic-qpack-16)
 
 <div id="refer-anchor-1"></div>
-[快手自研 kQUIC：千万级 QPS 集群是如何实现的？](https://mp.weixin.qq.com/s/ttGHI4Vxla2M_k2jsaiCTQ)
+
+[1] [快手自研 kQUIC：千万级 QPS 集群是如何实现的？](https://mp.weixin.qq.com/s/ttGHI4Vxla2M_k2jsaiCTQ)
